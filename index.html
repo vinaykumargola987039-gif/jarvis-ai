@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07111f">
+<title>JARVIS AI — Android Edition</title>
+<style>
+:root{color-scheme:dark;--cyan:#55dcff;--muted:#9ab4c8}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 20%,#12304b,#07111f 55%,#030811);font-family:system-ui,Arial,sans-serif;color:#eaf8ff;display:flex;justify-content:center}
+main{width:min(100%,560px);padding:24px 18px 36px;text-align:center}
+h1{letter-spacing:.18em;font-size:27px;margin:14px 0 4px;color:var(--cyan)}
+.sub{color:var(--muted);font-size:13px}
+.arc{width:190px;height:190px;margin:28px auto 22px;border:2px solid #55dcff;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 18px #28bde966,inset 0 0 25px #28bde933;position:relative}
+.arc:before,.arc:after{content:"";position:absolute;border:1px solid #55dcff88;border-radius:50%}
+.arc:before{inset:12px}.arc:after{inset:27px}
+.core{width:74px;height:74px;border-radius:50%;background:radial-gradient(circle,#e8fcff,#39c9f3 35%,#08739b 70%);box-shadow:0 0 28px #55dcff}
+button,select,input{font:inherit}
+button{border:1px solid #55dcff;background:#0b263b;color:#eaf8ff;border-radius:14px;padding:13px 16px;cursor:pointer}
+button:active{transform:scale(.98)}
+#listen{width:100%;font-weight:700;background:linear-gradient(100deg,#0c6685,#123a60)}
+.row{display:flex;gap:9px;margin-top:12px}
+.row input{min-width:0;flex:1;border:1px solid #31536b;background:#081725;color:white;border-radius:12px;padding:12px}
+.panel{margin-top:18px;text-align:left;border:1px solid #23445b;background:#071522cc;border-radius:16px;padding:14px}
+.label{font-size:11px;color:var(--cyan);letter-spacing:.12em;text-transform:uppercase}
+#status{color:#b8d8e9;margin-top:12px;font-size:13px;min-height:20px}
+#reply{white-space:pre-wrap;line-height:1.5;margin-top:8px}
+select{margin-top:8px;width:100%;padding:10px;border-radius:10px;background:#0b1e2d;color:white;border:1px solid #31536b}
+.small{font-size:12px;color:var(--muted);line-height:1.5}
+</style>
+</head>
+<body>
+<main>
+  <div class="sub">PERSONAL VOICE ASSISTANT · VERSION 1.0</div>
+  <h1>J.A.R.V.I.S.</h1>
+  <div class="sub">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
+  <div class="arc"><div class="core"></div></div>
+  <button id="listen">🎙 TAP TO TALK</button>
+  <div id="status">Ready. Tap the button and allow microphone access.</div>
+  <div class="panel">
+    <div class="label">You said</div>
+    <div id="heard">Waiting for a command…</div>
+  </div>
+  <div class="panel">
+    <div class="label">JARVIS</div>
+    <div id="reply">Hello. I am JARVIS. How can I help you?</div>
+  </div>
+  <div class="panel">
+    <div class="label">Voice language</div>
+    <select id="lang">
+      <option value="hi-IN">Hindi (India)</option>
+      <option value="en-IN">English (India)</option>
+      <option value="en-US">English (US)</option>
+    </select>
+    <div class="label" style="margin-top:14px">Available phone voices</div>
+    <select id="voice"><option>Loading voices…</option></select>
+    <p class="small">The available voices come from your Android text-to-speech settings. A female voice may not be installed on every phone.</p>
+  </div>
+  <div class="panel">
+    <div class="label">Try saying</div>
+    <p class="small">“Hello Jarvis” · “What time is it?” · “What is today's date?” · “Open YouTube” · “Search for space facts” · “Who are you?”</p>
+    <div class="label">Type a command</div>
+    <div class="row"><input id="typed" placeholder="Type a command…"><button id="send">Send</button></div>
+  </div>
+  <p class="small">Microphone access is used only after you tap the button. Speech recognition may be processed by your browser's online speech service. This starter version does not contain an AI chatbot or listen continuously.</p>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let recognition = null;
+let voices = [];
+
+function loadVoices(){
+  voices = speechSynthesis.getVoices();
+  const sel = $("voice");
+  sel.innerHTML = "";
+  if(!voices.length){sel.innerHTML='<option value="">Use phone default voice</option>';return;}
+  const preferred = voices.filter(v => /female|woman|zira|samantha|google.*(hindi|english).*female/i.test(v.name));
+  const sorted = [...preferred, ...voices.filter(v => !preferred.includes(v))];
+  sorted.forEach(v=>{
+    const o=document.createElement("option");
+    o.value=v.voiceURI;
+    o.textContent=v.name+" ("+v.lang+")";
+    sel.appendChild(o);
+  });
+}
+loadVoices();
+if ("onvoiceschanged" in speechSynthesis) speechSynthesis.onvoiceschanged=loadVoices;
+
+function speak(text){
+  $("reply").textContent=text;
+  if(!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  const chosen=voices.find(v=>v.voiceURI===$("voice").value);
+  if(chosen) u.voice=chosen;
+  u.lang=$("lang").value;
+  u.rate=0.96; u.pitch=1.08; u.volume=1;
+  speechSynthesis.speak(u);
+}
+function respond(raw){
+  const q=raw.toLowerCase().trim();
+  $("heard").textContent=raw;
+  if(!q) return;
+  if(/hello|hi jarvis|hey jarvis|namaste|नमस्ते|हेलो/.test(q)){
+    speak("Hello. I am JARVIS, your personal assistant.");
+  } else if(/time|समय|टाइम/.test(q)){
+    speak("The time is "+new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}));
+  } else if(/date|दिनांक|तारीख|आज कौन सा दिन/.test(q)){
+    speak("Today is "+new Date().toLocaleDateString(undefined,{weekday:"long",year:"numeric",month:"long",day:"numeric"}));
+  } else if(/who are you|तुम कौन|तुम्हारा नाम/.test(q)){
+    speak("I am JARVIS, your Android voice assistant. I am still learning new abilities.");
+  } else if(/open youtube|यूट्यूब खोल/.test(q)){
+    speak("Opening YouTube."); window.open("https://www.youtube.com/","_blank");
+  } else if(/open google|गूगल खोल/.test(q)){
+    speak("Opening Google."); window.open("https://www.google.com/","_blank");
+  } else if(q.startsWith("search for ") || q.startsWith("search " ) || q.startsWith("खोजो ")){
+    const term=raw.replace(/^search for\s*/i,"").replace(/^search\s*/i,"").replace(/^खोजो\s*/i,"").trim();
+    if(term){speak("Searching the web for "+term);window.open("https://www.google.com/search?q="+encodeURIComponent(term),"_blank");}
+    else speak("Please tell me what to search for.");
+  } else if(/stop|शांत|बंद करो/.test(q)){
+    speechSynthesis.cancel(); speak("Okay. I have stopped speaking.");
+  } else {
+    speak("I heard you say: "+raw+". I can currently tell the time and date, open Google or YouTube, and search the web. More AI features will come in the next version.");
+  }
+}
+function startListening(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){$("status").textContent="Speech recognition is not available in this browser. Try an updated Chrome browser.";return;}
+  try{
+    recognition=new SR();
+    recognition.lang=$("lang").value;
+    recognition.interimResults=false;
+    recognition.maxAlternatives=1;
+    recognition.onstart=()=>$("status").textContent="Listening… speak now.";
+    recognition.onresult=e=>respond(e.results[0][0].transcript);
+    recognition.onerror=e=>$("status").textContent="Microphone / speech error: "+e.error+". Check browser permission and try again.";
+    recognition.onend=()=>$("status").textContent="Ready. Tap to speak again.";
+    recognition.start();
+  }catch(e){$("status").textContent="Could not start microphone. Please try again.";}
+}
+$("listen").addEventListener("click",startListening);
+$("send").addEventListener("click",()=>{respond($("typed").value);$("typed").value="";});
+$("typed").addEventListener("keydown",e=>{if(e.key==="Enter")$("send").click();});
+</script>
+</body>
+</html>
