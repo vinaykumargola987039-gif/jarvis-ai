@@ -15,7 +15,19 @@ button,input,textarea,select{font:inherit}button{background:#0d3148;border:1px s
 <div class="grid"><div class="panel"><h2>You said</h2><div id="heard">Waiting for a command…</div></div><div class="panel"><h2>JARVIS reply</h2><div id="reply">Hello. JARVIS Advanced Edition is ready.</div></div></div>
 <section class="panel"><h2>Voice settings</h2><label class="muted" for="lang">Recognition and reply language</label><select class="field" id="lang"><option value="hi-IN">Hindi (India)</option><option value="en-IN">English (India)</option><option value="en-US">English (US)</option></select><label class="muted" for="voice">Phone voice (choose a female-sounding voice if available)</label><select class="field" id="voice"><option value="">Phone default voice</option></select><div class="actions"><button id="testvoice">Test voice</button><button id="stopvoice">Stop speaking</button></div><p class="muted">Available voices depend on Android's installed text-to-speech voices. A female voice may not be installed on every phone.</p></section>
 <section class="panel"><h2>Quick controls</h2><div class="actions"><button data-open="https://www.google.com/">Google</button><button data-open="https://www.youtube.com/">YouTube</button><button data-open="https://www.google.com/maps">Maps</button><button data-open="https://mail.google.com/">Gmail</button></div><p class="muted">These open websites in your browser. Android may ask which app to use.</p></section>
-<section class="panel"><h2>Personal notes</h2><textarea class="field noteinput" id="noteText" placeholder="Write a note…"></textarea><button id="saveNote">Save note</button><div id="notes"></div></section>
+<section class="panel">
+  <h2>Personal notes</h2>
+
+  <textarea class="field noteinput" id="noteText"
+    placeholder="Write a note…"></textarea>
+
+  <button id="saveNote">Save note</button>
+
+  <input class="field" id="noteSearch"
+    placeholder="Search your notes…">
+
+  <div id="notes"></div>
+</section>
 <section class="panel"><h2>Reminders</h2><input class="field" id="reminderText" placeholder="What should I remind you about?"><label class="muted" for="reminderTime">Reminder date and time</label><input class="field" id="reminderTime" type="datetime-local"><button id="addReminder">Add reminder</button><div id="reminders"></div><p class="muted">Reminder alerts work while this page is open. They are not reliable when the page is closed or suspended.</p></section>
 <section class="panel"><h2>Try these voice commands</h2><div class="command">“Hello Jarvis” · “What time is it?” · “What is today's date?”<br>“Open YouTube” · “Open Google” · “Search for planets”<br>“Remember buy notebooks” · “Show my notes” · “Help”</div><div style="margin-top:12px"><input class="field" id="typed" placeholder="Or type a command…"><button id="send">Send command</button></div></section>
 <footer>JARVIS V2.0 starter · Notes are stored in this browser on this device.<br>Voice recognition may use your browser's speech service. No always-on listening.</footer>
@@ -26,9 +38,88 @@ function read(k){try{return JSON.parse(localStorage.getItem(k)||"[]")}catch(e){r
 function loadVoices(){voices=speechSynthesis.getVoices();let s=$("voice"),old=s.value;s.innerHTML='<option value="">Phone default voice</option>';let pref=voices.filter(v=>/female|woman|zira|samantha|google.*(hindi|english).*female/i.test(v.name));[...pref,...voices.filter(v=>!pref.includes(v))].forEach(v=>{let o=document.createElement("option");o.value=v.voiceURI;o.textContent=v.name+" ("+v.lang+")";s.append(o)});if(old)s.value=old}loadVoices();if("onvoiceschanged"in speechSynthesis)speechSynthesis.onvoiceschanged=loadVoices;
 function speak(t){$("reply").textContent=t;if(!window.speechSynthesis)return;speechSynthesis.cancel();let u=new SpeechSynthesisUtterance(t),v=voices.find(x=>x.voiceURI===$("voice").value);if(v)u.voice=v;u.lang=$("lang").value;u.rate=.96;u.pitch=1.08;speechSynthesis.speak(u)}
 function openWeb(url){window.open(url,"_blank","noopener")}
-function saveNote(t){if(!t.trim())return false;let a=read("jarvis_notes");a.unshift(t.trim());if(!write("jarvis_notes",a))return false;renderNotes();return true}
-function renderNotes(){let b=$("notes"),a=read("jarvis_notes");b.innerHTML="";if(!a.length){b.innerHTML='<p class="muted">No saved notes yet.</p>';return}a.forEach((n,i)=>{let d=document.createElement("div");d.className="item";let s=document.createElement("span");s.textContent=n;let x=document.createElement("button");x.textContent="Delete";x.onclick=()=>{let z=read("jarvis_notes");z.splice(i,1);write("jarvis_notes",z);renderNotes()};d.append(s,x);b.append(d)})}
-function addReminder(t,w){if(!t.trim()||!w)return false;let a=read("jarvis_reminders");a.push({text:t.trim(),when:w});if(!write("jarvis_reminders",a))return false;renderReminders();schedule();return true}
+
+function saveNote(t) {
+  if (!t.trim()) return false;
+
+  let a = read("jarvis_notes");
+  let times = read("jarvis_note_times");
+
+  a.unshift(t.trim());
+  times.unshift(new Date().toISOString());
+
+  if (!write("jarvis_notes", a)) return false;
+
+  write("jarvis_note_times", times);
+  renderNotes();
+
+  return true;
+}
+
+function renderNotes() {
+  let b = $("notes");
+  let a = read("jarvis_notes");
+  let times = read("jarvis_note_times");
+  let search = $("noteSearch").value.toLowerCase();
+
+  b.innerHTML = "";
+
+  a.forEach((n, i) => {
+    if (!n.toLowerCase().includes(search)) return;
+
+    let d = document.createElement("div");
+    d.className = "item";
+
+    let s = document.createElement("span");
+    s.textContent = n;
+
+    let date = document.createElement("small");
+    date.textContent = times[i]
+      ? new Date(times[i]).toLocaleString()
+      : "Previously saved";
+
+    let x = document.createElement("button");
+    x.textContent = "Delete";
+
+    x.onclick = () => {
+      let z = read("jarvis_notes");
+      let tm = read("jarvis_note_times");
+
+      z.splice(i, 1);
+      tm.splice(i, 1);
+
+      write("jarvis_notes", z);
+      write("jarvis_note_times", tm);
+
+      renderNotes();
+    };
+
+    d.append(s, date, x);
+    b.append(d);
+  });
+
+  if (!b.children.length) {
+    b.textContent = search
+      ? "No matching notes."
+      : "No saved notes yet.";
+  }
+    }
+  
+
+<section class="panel">
+  <h2>Personal notes</h2>
+
+  <textarea class="field noteinput" id="noteText"
+    placeholder="Write a note…"></textarea>
+
+  <button id="saveNote">Save note</button>
+
+  <input class="field" id="noteSearch"
+    placeholder="Search your notes…">
+
+  <div id="notes"></div>
+</section>
+  function addReminder(t,w){if(!t.trim()||!w)return false;let a=read("jarvis_reminders");a.push({text:t.trim(),when:w});if(!write("jarvis_reminders",a))return false;renderReminders();schedule();return true}
 function renderReminders(){let b=$("reminders"),a=read("jarvis_reminders");b.innerHTML="";if(!a.length){b.innerHTML='<p class="muted">No reminders yet.</p>';return}a.forEach((r,i)=>{let d=document.createElement("div");d.className="item";let s=document.createElement("span");s.textContent=r.text+" — "+new Date(r.when).toLocaleString();let x=document.createElement("button");x.textContent="Delete";x.onclick=()=>{let z=read("jarvis_reminders");z.splice(i,1);write("jarvis_reminders",z);renderReminders();schedule()};d.append(s,x);b.append(d)})}
 function schedule(){reminderTimers.forEach(clearTimeout);reminderTimers=[];read("jarvis_reminders").forEach(r=>{let ms=new Date(r.when).getTime()-Date.now();if(ms>=0&&ms<2147480000)reminderTimers.push(setTimeout(()=>speak("Reminder: "+r.text),ms))})}
 function respond(raw){let q=raw.toLowerCase().trim();$("heard").textContent=raw;if(!q)return;
