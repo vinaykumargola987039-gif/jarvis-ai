@@ -102,11 +102,8 @@ function renderNotes() {
     b.textContent = search
       ? "No matching notes."
       : "No saved notes yet.";
-  }
-    }
-  <section class="panel">
-<h2>Personal notes</h2>
-</section>
+} 
+      }
 function addReminder(t,w){if(!t.trim()||!w)return false;let a=read("jarvis_reminders");a.push({text:t.trim(),when:w});if(!write("jarvis_reminders",a))return false;renderReminders();schedule();return true}
 function renderReminders(){let b=$("reminders"),a=read("jarvis_reminders");b.innerHTML="";if(!a.length){b.innerHTML='<p class="muted">No reminders yet.</p>';return}a.forEach((r,i)=>{let d=document.createElement("div");d.className="item";let s=document.createElement("span");s.textContent=r.text+" — "+new Date(r.when).toLocaleString();let x=document.createElement("button");x.textContent="Delete";x.onclick=()=>{let z=read("jarvis_reminders");z.splice(i,1);write("jarvis_reminders",z);renderReminders();schedule()};d.append(s,x);b.append(d)})}
 function schedule(){reminderTimers.forEach(clearTimeout);reminderTimers=[];read("jarvis_reminders").forEach(r=>{let ms=new Date(r.when).getTime()-Date.now();if(ms>=0&&ms<2147480000)reminderTimers.push(setTimeout(()=>speak("Reminder: "+r.text),ms))})}
